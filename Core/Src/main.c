@@ -72,6 +72,7 @@ static void MX_TIM2_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+	uint16_t AD_RES = 0, Vamb, DC_Multiplier;
 
   /* USER CODE END 1 */
 
@@ -98,6 +99,16 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
+  	  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+      // Calibrate The ADC On Power-Up For Better Accuracy
+      HAL_ADCEx_Calibration_Start(&hadc1);
+      // Read The Sensor Once To Get The Ambient Level
+      // & Calculate The DutyCycle Multiplier
+      HAL_ADC_Start(&hadc1);
+      HAL_ADC_PollForConversion(&hadc1, 1);
+      Vamb = HAL_ADC_GetValue(&hadc1);
+      DC_Multiplier = 65536/(4096-Vamb);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -105,6 +116,14 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+	  // Start ADC Conversion
+	      	HAL_ADC_Start(&hadc1);
+	         // Poll ADC1 Perihperal & TimeOut = 1mSec
+	      	HAL_ADC_PollForConversion(&hadc1, 1);
+	         // Read The ADC Conversion Result & Map It To PWM DutyCycle
+	      	AD_RES = HAL_ADC_GetValue(&hadc1);
+	      	TIM2->CCR1 = (AD_RES-Vamb)*DC_Multiplier;
+	      	HAL_Delay(1);
 
     /* USER CODE BEGIN 3 */
   }
@@ -220,9 +239,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 640-1;
+  htim2.Init.Prescaler = 10-1;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 10000-1;
+  htim2.Init.Period = 64000-1;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
